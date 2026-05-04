@@ -8,4 +8,5 @@ coverage/
 .memory-layer/baselines/
 .memory-layer/cache/
 .memory-layer/reports/
-.mault/verify-*.proof
+.mault/
+.memory-layer/
