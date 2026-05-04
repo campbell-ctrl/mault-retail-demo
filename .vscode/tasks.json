@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Demo Reset (auto)",
+      "type": "shell",
+      "command": "bash demo-reset.sh",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true,
+        "showReuseMessage": false
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Demo Reset",
+      "type": "shell",
+      "command": "bash demo-reset.sh",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "none",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,107 +1,357 @@
-You are the Orchestrator for the Mault retail extension demo. Work in the repo at the current directory.
+You are the Orchestrator for the Mault retail extension demo. The working directory is the repo root. Do all steps below in order. Use Bash, Read, Edit, and Write tools directly — do not spawn sub-agents, do not invoke skills.
 
-## Step 1 — Verify demo state
+---
 
-Run `bash demo-reset.sh` to restore all intentional gaps and reopen issues. Wait for it to complete.
+## PHASE 1 — Confirm demo state
 
-Then confirm:
-- `gh issue list --label mault-agent --state open` shows 8 open issues
-- `ls src/legacy/` shows `old-product-helpers.ts` exists
-- `ls src/middleware/auth.ts` returns "No such file"
-- `ls src/utils/logger.ts` returns "No such file"
+Run: `gh issue list --label mault-agent --state open --json number,title -q '.[] | "\(.number) \(.title)"'`
 
-## Step 2 — Spawn Worker A and Worker B in parallel
+If fewer than 8 issues are open, run `bash demo-reset.sh` and wait for it to finish.
 
-Use the Agent tool to launch BOTH workers at the same time (single message, two Agent calls).
+Confirm:
+- `ls src/legacy/` → old-product-helpers.ts exists
+- `ls src/middleware/auth.ts` → "No such file" (expected)
+- `ls src/utils/logger.ts` → "No such file" (expected)
 
-**Worker A prompt** (security branch `fix/sec-validation-hardening`):
-```
-You are Worker Agent A for the Mault retail extension demo. Work in the repo at the current directory.
+---
 
-Do ALL of these on one branch called fix/sec-validation-hardening:
+## PHASE 2 — Worker A: Security & Validation (branch fix/sec-validation-hardening)
 
-1. git checkout -b fix/sec-validation-hardening
-2. npm install (helmet and express-rate-limit are already in package.json — just run install)
-
-SEC-001 — src/routes/products.ts: add express-validator. Import body and validationResult. On POST /, add validators: body('name').notEmpty(), body('price').isFloat({min:0}), body('sku').notEmpty(). Return 422 with errors.array() if validation fails.
-
-SEC-002 — Create src/middleware/auth.ts: export function requireAuth(req,res,next) that checks for Authorization header starting with "Bearer ", returns 401 if missing, calls next() if present. Apply requireAuth to POST /adjust in src/routes/inventory.ts and POST / in src/routes/checkout.ts.
-
-SEC-003 — src/index.ts: import helmet from 'helmet' and add app.use(helmet()) before app.use(express.json()).
-
-INF-002 — src/index.ts: import rateLimit from 'express-rate-limit'. Create apiLimiter with windowMs:15*60*1000, max:100, standardHeaders:true, legacyHeaders:false. Apply it: app.use('/api/products', apiLimiter, productRoutes).
-
-After all changes:
-- Run: npx tsc --noEmit (fix any errors before continuing)
-- Run: npm test (fix any failures before continuing)
-- Run: git add src/middleware/auth.ts src/routes/products.ts src/routes/inventory.ts src/routes/checkout.ts src/index.ts
-- Run: git commit -m "[SEC] Security hardening: validation, auth, helmet, rate-limit (#9 #10 #11 #12)"
-- Run: git push -u origin fix/sec-validation-hardening
-- Run: gh pr create --title "[SEC] Security hardening: validation, auth, helmet, rate-limit (#9 #10 #11 #12)" --body "Closes #9, #10, #11, #12\n\n- SEC-001: express-validator on POST /api/products\n- SEC-002: requireAuth middleware on /api/inventory/adjust and /api/checkout\n- SEC-003: helmet() security headers\n- INF-002: express-rate-limit on /api/products"
-
-Report back the PR URL when done.
+```bash
+git checkout main
+git checkout -b fix/sec-validation-hardening
 ```
 
-**Worker B prompt** (infra branch `fix/infra-observability`):
-```
-You are Worker Agent B for the Mault retail extension demo. Work in the repo at the current directory.
+**SEC-001** — `src/routes/products.ts`: add express-validator on POST /
 
-Do ALL of these on one branch called fix/infra-observability:
+Replace the file with:
+```typescript
+import { Router, Request, Response } from 'express';
+import { body, validationResult } from 'express-validator';
+import { getAllProducts, getProductById, createProduct } from '../services/product-service';
 
-1. git checkout -b fix/infra-observability
+const router = Router();
 
-INF-001 — src/index.ts: Add this route before app.use('/api/products',...):
-  app.get('/api/health', (_req, res) => { res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() }); });
+router.get('/', (_req: Request, res: Response) => {
+  const products = getAllProducts();
+  res.json({ data: products, count: products.length });
+});
 
-LOG-001 — Create src/utils/logger.ts:
-  type LogLevel = 'info'|'warn'|'error';
-  function log(level: LogLevel, msg: string, meta?: object): void {
-    const entry = JSON.stringify({ level, msg, ...(meta ? { meta } : {}), ts: new Date().toISOString() });
-    if (level === 'error') { process.stderr.write(entry + '\n'); } else { process.stdout.write(entry + '\n'); }
+router.get('/:id', (req: Request, res: Response) => {
+  const product = getProductById(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+  res.json({ data: product });
+});
+
+router.post(
+  '/',
+  body('name').notEmpty().withMessage('name is required'),
+  body('price').isFloat({ min: 0 }).withMessage('price must be a non-negative number'),
+  body('sku').notEmpty().withMessage('sku is required'),
+  (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(422).json({ errors: errors.array() });
+    const product = createProduct(req.body);
+    res.status(201).json({ data: product });
   }
-  export const logger = { info: (msg:string,meta?:object)=>log('info',msg,meta), warn: (msg:string,meta?:object)=>log('warn',msg,meta), error: (msg:string,meta?:object)=>log('error',msg,meta) };
+);
 
-Then replace console.log/console.error:
-- src/index.ts: import logger, change console.log to logger.info
-- src/routes/inventory.ts: import logger, change console.log to logger.info('Inventory adjusted', { reason, productId, adjustment })
-- src/middleware/error-handler.ts: import logger, change console.error to logger.error(err.message, { stack: err.stack })
-
-TST-001 — Create tests/unit/order-service.test.ts with jest tests covering createOrder (success, not-found error, insufficient-stock error) and updateOrderStatus (unknown id returns null, happy path). Read src/services/order-service.ts first to understand the real API.
-
-ARCH-001 — Delete src/legacy/ (confirm no imports point to it first with: grep -r "legacy" src/ --include="*.ts")
-
-After all changes:
-- Run: npx tsc --noEmit (fix any errors)
-- Run: npm test (fix any failures)
-- Run: git add src/utils/logger.ts src/index.ts src/routes/inventory.ts src/middleware/error-handler.ts tests/unit/order-service.test.ts && git rm -r src/legacy/
-- Run: git commit -m "[INF] Infrastructure & observability: health, logging, tests, arch cleanup (#13 #14 #15 #16)"
-- Run: git push -u origin fix/infra-observability
-- Run: gh pr create --title "[INF] Infrastructure & observability: health, logging, tests, arch cleanup (#13 #14 #15 #16)" --body "Closes #13, #14, #15, #16\n\n- INF-001: GET /api/health endpoint\n- LOG-001: src/utils/logger.ts, replaced all console.log/error\n- TST-001: tests/unit/order-service.test.ts (createOrder + updateOrderStatus)\n- ARCH-001: deleted src/legacy/"
-
-Report back the PR URL when done.
+export default router;
 ```
 
-## Step 3 — Wait for both workers, then review
+**SEC-002** — Create `src/middleware/auth.ts`:
+```typescript
+import { Request, Response, NextFunction } from 'express';
 
-After both agents complete, for each PR:
-
-1. `gh pr checkout <number>`
-2. `npx tsc --noEmit` — must be clean
-3. `npm test` — must pass
-4. Leave a comment: `gh pr comment <number> --body "Review Agent: TSC clean ✓ | tests pass ✓ | LGTM"`
-5. `gh pr merge <number> --squash --admin --delete-branch`
-6. `git checkout main && git pull`
-
-If PR #17 merges cleanly, rebase PR #18 onto main before merging to resolve any conflicts.
-
-## Step 4 — Close issues and report
-
-```
-gh issue close 9 10 11 12 13 14 15 16 --comment "Fixed and merged."
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  next();
+}
 ```
 
-Print a final summary:
-- Issues #9–16: closed ✓
-- PR #17 [SEC]: merged ✓
-- PR #18 [INF]: merged ✓
-- Tests passing: X/X ✓
+Update `src/routes/inventory.ts` — add `import { requireAuth } from '../middleware/auth';` and change `router.post('/adjust', (req` to `router.post('/adjust', requireAuth, (req`.
+
+Update `src/routes/checkout.ts` — add `import { requireAuth } from '../middleware/auth';` and change `router.post('/', (req` to `router.post('/', requireAuth, (req`.
+
+**SEC-003 + INF-002** — `src/index.ts`: add helmet and rate limiting.
+
+Replace the file with:
+```typescript
+import express from 'express';
+import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import productRoutes from './routes/products';
+import inventoryRoutes from './routes/inventory';
+import checkoutRoutes from './routes/checkout';
+import orderRoutes from './routes/orders';
+import { errorHandler } from './middleware/error-handler';
+import { seedProducts } from './services/product-service';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(helmet());
+app.use(express.json());
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false });
+
+app.use('/api/products', apiLimiter, productRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/checkout', checkoutRoutes);
+app.use('/api/orders', orderRoutes);
+
+app.use(errorHandler);
+seedProducts();
+
+app.listen(PORT, () => { console.log(`Retail extension running on port ${PORT}`); });
+
+export default app;
+```
+
+**Verify Worker A:**
+```bash
+npx tsc --noEmit
+npm test
+```
+Fix any errors before continuing.
+
+**Commit and push Worker A:**
+```bash
+git add src/middleware/auth.ts src/routes/products.ts src/routes/inventory.ts src/routes/checkout.ts src/index.ts
+git commit -m "[SEC] Security hardening: validation, auth, helmet, rate-limit (#9 #10 #11 #12)"
+git push -u origin fix/sec-validation-hardening
+gh pr create --title "[SEC] Security hardening: validation, auth, helmet, rate-limit (#9 #10 #11 #12)" --body "Closes #9, #10, #11, #12
+
+- SEC-001: express-validator on POST /api/products (422 on invalid input)
+- SEC-002: requireAuth middleware on /api/inventory/adjust and /api/checkout
+- SEC-003: helmet() security headers
+- INF-002: express-rate-limit (100 req/15 min) on /api/products"
+```
+
+Note the PR number. Then:
+```bash
+git checkout main
+```
+
+---
+
+## PHASE 3 — Worker B: Infrastructure & Observability (branch fix/infra-observability)
+
+```bash
+git checkout -b fix/infra-observability
+```
+
+**LOG-001** — Create `src/utils/logger.ts`:
+```typescript
+type LogLevel = 'info' | 'warn' | 'error';
+
+function log(level: LogLevel, msg: string, meta?: object): void {
+  const entry = JSON.stringify({ level, msg, ...(meta ? { meta } : {}), ts: new Date().toISOString() });
+  if (level === 'error') { process.stderr.write(entry + '\n'); } else { process.stdout.write(entry + '\n'); }
+}
+
+export const logger = {
+  info: (msg: string, meta?: object) => log('info', msg, meta),
+  warn: (msg: string, meta?: object) => log('warn', msg, meta),
+  error: (msg: string, meta?: object) => log('error', msg, meta),
+};
+```
+
+**INF-001 + LOG-001** — Replace `src/index.ts`:
+```typescript
+import express from 'express';
+import dotenv from 'dotenv';
+import productRoutes from './routes/products';
+import inventoryRoutes from './routes/inventory';
+import checkoutRoutes from './routes/checkout';
+import orderRoutes from './routes/orders';
+import { errorHandler } from './middleware/error-handler';
+import { seedProducts } from './services/product-service';
+import { logger } from './utils/logger';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+app.use('/api/products', productRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/checkout', checkoutRoutes);
+app.use('/api/orders', orderRoutes);
+
+app.use(errorHandler);
+seedProducts();
+
+app.listen(PORT, () => { logger.info(`Retail extension running on port ${PORT}`); });
+
+export default app;
+```
+
+**LOG-001 continued** — Replace `src/routes/inventory.ts`:
+```typescript
+import { Router, Request, Response } from 'express';
+import { getAllProducts, getProductById, updateProductStock } from '../services/product-service';
+import { logger } from '../utils/logger';
+
+const router = Router();
+
+router.get('/', (_req: Request, res: Response) => {
+  const products = getAllProducts();
+  const inventory = products.map(p => ({
+    productId: p.id, sku: p.sku, quantityOnHand: p.stock,
+    quantityReserved: 0, quantityAvailable: p.stock, reorderPoint: 10, lastUpdated: p.updatedAt,
+  }));
+  res.json({ data: inventory });
+});
+
+router.post('/adjust', (req: Request, res: Response) => {
+  const { productId, adjustment, reason } = req.body;
+  const product = getProductById(productId);
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+  const updated = updateProductStock(productId, adjustment);
+  logger.info('Inventory adjusted', { reason, productId, adjustment });
+  res.json({ data: updated });
+});
+
+export default router;
+```
+
+Replace `src/middleware/error-handler.ts`:
+```typescript
+import { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger';
+
+export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
+  logger.error(err.message, { stack: err.stack });
+  res.status(500).json({ error: 'Internal server error' });
+}
+```
+
+**TST-001** — Create `tests/unit/order-service.test.ts`:
+```typescript
+import { createOrder, getOrderById, updateOrderStatus } from '../../src/services/order-service';
+import { seedProducts, getAllProducts } from '../../src/services/product-service';
+
+beforeEach(() => { seedProducts(); });
+
+describe('order-service', () => {
+  describe('createOrder', () => {
+    it('returns error when product not found', () => {
+      const r = createOrder({ customerId: 'c1', items: [{ productId: 'bad', quantity: 1 }] });
+      expect('error' in r).toBe(true);
+    });
+    it('creates order with correct totals', () => {
+      const p = getAllProducts()[0];
+      const r = createOrder({ customerId: 'c2', items: [{ productId: p.id, quantity: 1 }] });
+      expect('error' in r).toBe(false);
+      if (!('error' in r)) { expect(r.totalAmount).toBe(p.price); expect(r.status).toBe('pending'); }
+    });
+    it('returns error when stock insufficient', () => {
+      const p = getAllProducts()[0];
+      const r = createOrder({ customerId: 'c3', items: [{ productId: p.id, quantity: 99999 }] });
+      expect('error' in r).toBe(true);
+    });
+  });
+  describe('updateOrderStatus', () => {
+    it('returns null for unknown id', () => { expect(updateOrderStatus('x', 'confirmed')).toBeNull(); });
+    it('updates status on known order', () => {
+      const p = getAllProducts()[0];
+      const r = createOrder({ customerId: 'c4', items: [{ productId: p.id, quantity: 1 }] });
+      if (!('error' in r)) {
+        const u = updateOrderStatus(r.id, 'confirmed');
+        expect(u?.status).toBe('confirmed');
+      }
+    });
+  });
+  describe('getOrderById', () => {
+    it('returns undefined for unknown id', () => { expect(getOrderById('x')).toBeUndefined(); });
+  });
+});
+```
+
+**ARCH-001** — Delete legacy:
+```bash
+grep -r "legacy" src/ --include="*.ts" -l || echo "no imports found"
+rm -rf src/legacy/
+```
+
+**Verify Worker B:**
+```bash
+npx tsc --noEmit
+npm test
+```
+Fix any errors before continuing.
+
+**Commit and push Worker B:**
+```bash
+git add src/utils/logger.ts src/index.ts src/routes/inventory.ts src/middleware/error-handler.ts tests/unit/order-service.test.ts
+git rm -r src/legacy/
+git commit -m "[INF] Infrastructure & observability: health, logging, tests, arch cleanup (#13 #14 #15 #16)"
+git push -u origin fix/infra-observability
+gh pr create --title "[INF] Infrastructure & observability: health, logging, tests, arch cleanup (#13 #14 #15 #16)" --body "Closes #13, #14, #15, #16
+
+- INF-001: GET /api/health endpoint
+- LOG-001: src/utils/logger.ts, replaced all console.log/error
+- TST-001: tests/unit/order-service.test.ts (6 tests)
+- ARCH-001: deleted src/legacy/"
+```
+
+Note the PR number. Then:
+```bash
+git checkout main
+```
+
+---
+
+## PHASE 4 — Review and merge
+
+For each PR (Worker A first, then Worker B):
+
+1. Check it out and verify:
+```bash
+gh pr checkout <number>
+npx tsc --noEmit
+npm test
+```
+
+2. If Worker B conflicts with Worker A after merge, rebase:
+```bash
+git rebase main
+# resolve any conflicts in src/index.ts: keep helmet+rate-limit from Worker A, add health endpoint and logger from Worker B
+git rebase --continue
+git push --force-with-lease origin fix/infra-observability
+```
+
+3. Merge:
+```bash
+git checkout main
+gh pr merge <number> --squash --admin --delete-branch
+git pull
+```
+
+---
+
+## PHASE 5 — Close issues and report
+
+```bash
+gh issue close 9 10 11 12 13 14 15 16 --comment "Fixed and merged to main."
+```
+
+Print a final table:
+- Issues #9–16 closed ✓
+- PR [SEC] merged ✓
+- PR [INF] merged ✓
+- All N tests passing ✓
