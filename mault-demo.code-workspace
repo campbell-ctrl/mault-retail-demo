@@ -1,0 +1,29 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "claudeCode.preferredLocation": "editor",
+        "mault.detectionLevel": 3,
+        "mault.enabled": true,
+        "mault.excludePatterns": [
+            "node_modules/**",
+            "dist/**",
+            "coverage/**",
+            ".memory-layer/**"
+        ],
+        "editor.fontSize": 14,
+        "editor.minimap.enabled": false,
+        "breadcrumbs.enabled": false,
+        "workbench.panel.defaultLocation": "bottom",
+        "terminal.integrated.fontSize": 14,
+        "terminal.integrated.defaultProfile.osx": "zsh"
+    },
+    "extensions": {
+        "recommendations": [
+            "mault.mault"
+        ]
+    }
+}

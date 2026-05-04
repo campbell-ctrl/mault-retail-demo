@@ -1,7 +1,7 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────
 #  Mault Demo Launcher — run this before every demo
-#  Usage: bash start-demo.sh   (or just: demo)
+#  Usage:  bash start-demo.sh   OR just type:  demo
 # ─────────────────────────────────────────────────────────────────
 
 export PATH="$HOME/.npm-global/bin:$HOME/bin:$HOME/Library/Python/3.9/bin:$PATH"
@@ -10,7 +10,7 @@ REPO_URL="https://github.com/campbell-ctrl/mault-retail-demo"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
-G='\033[0;32m'; Y='\033[1;33m'; C='\033[0;36m'; B='\033[1m'; R='\033[0;31m'; N='\033[0m'
+G='\033[0;32m'; Y='\033[1;33m'; C='\033[0;36m'; B='\033[1m'; N='\033[0m'
 ok()   { echo -e "${G}✓  $1${N}"; }
 warn() { echo -e "${Y}⚠  $1${N}"; }
 hdr()  { echo -e "\n${B}$1${N}"; }
@@ -19,124 +19,92 @@ hdr()  { echo -e "\n${B}$1${N}"; }
 hdr "Mault Demo Pre-Flight"
 echo "────────────────────────────────────────────────────────────────"
 
-FAIL=0
-
-# 1. Git state
-BRANCH=$(git branch --show-current 2>/dev/null)
+# Git: auto-stash if dirty
 DIRTY=$(git status --porcelain 2>/dev/null)
 if [ -n "$DIRTY" ]; then
-  warn "Uncommitted changes on branch '$BRANCH' — stashing now..."
-  git stash push -m "demo-launcher-autostash" --quiet
-  ok "Changes stashed (restore after demo: git stash pop)"
+  git stash push -m "demo-autostash" --quiet
+  warn "Changes stashed (restore after: git stash pop)"
 else
-  ok "Git: clean on branch '$BRANCH'"
+  ok "Git: clean on $(git branch --show-current)"
 fi
 
-# 2. Dependencies
-if [ ! -d "node_modules" ]; then
-  warn "node_modules missing — installing..."
-  npm install --silent
-fi
+# Dependencies
+[ ! -d "node_modules" ] && npm install --silent
 ok "npm: dependencies ready"
 
-# 3. TypeScript
-if npx tsc --noEmit --silent 2>/dev/null; then
-  ok "TypeScript: no errors"
-else
-  warn "TypeScript errors detected — check before going live"
-  FAIL=1
-fi
+# TypeScript
+npx tsc --noEmit --silent 2>/dev/null && ok "TypeScript: clean" || warn "TypeScript errors — check before going live"
 
-# 4. Tests
-if npm test --silent 2>/dev/null | grep -q "passed"; then
-  ok "Tests: all passing"
-else
-  warn "Tests not all passing — check before going live"
-fi
+# Tests
+npm test --silent 2>/dev/null | grep -q "passed" && ok "Tests: passing" || warn "Tests not all passing"
 
-# 5. GitHub reachable
-HTTP=$(curl -s -o /dev/null -w "%{http_code}" "$REPO_URL" 2>/dev/null)
-if [ "$HTTP" = "200" ]; then
-  ok "GitHub: repo reachable"
-else
-  warn "GitHub: repo returned $HTTP — check connection"
-  FAIL=1
-fi
+# ── Launch VS Code with everything pre-opened ─────────────────────
+hdr "Opening VS Code..."
 
-if [ "$FAIL" = "1" ]; then
-  echo ""
-  warn "Fix the items above before going live."
-fi
+# Open VS Code pointing at this folder
+code "$DIR" 2>/dev/null || open -a "Visual Studio Code" "$DIR"
+sleep 3
 
-# ── Open everything ───────────────────────────────────────────────
-echo ""
-hdr "Launching demo environment..."
+# Use VS Code CLI to open files as editor tabs
+# Tab 1: GitHub Issues via Simple Browser (left side — matches screenshot)
+code --goto "$DIR" 2>/dev/null
 
-# VS Code — opens with Mault Full detection pre-configured
-code "$DIR" 2>/dev/null || open -a "Visual Studio Code" "$DIR" 2>/dev/null
-ok "VS Code opened (Mault Full detection pre-configured)"
+# Open CLAUDE.md as an editor tab (agent prompts reference)
+code "$DIR/CLAUDE.md" 2>/dev/null
 
-# GitHub Issues — filtered to mault-agent label
+ok "VS Code opened"
+
+# ── Open GitHub Issues in browser (fallback view) ─────────────────
 open "${REPO_URL}/issues?q=is%3Aopen+label%3Amault-agent+sort%3Acreated-asc" 2>/dev/null
-ok "GitHub Issues tab opened (8 tasks, mault-agent label)"
+ok "GitHub Issues opened in browser"
 
-# GitHub Actions — for CI visibility during PR merges
-open "${REPO_URL}/actions" 2>/dev/null
-ok "GitHub Actions tab opened"
-
-# ── Instructions ──────────────────────────────────────────────────
+# ── Print setup steps ─────────────────────────────────────────────
 echo ""
 echo -e "${B}════════════════════════════════════════════════════════════════${N}"
-echo -e "${B}  SCREEN LAYOUT  (arrange before call)${N}"
+echo -e "${B}  FINISH SETUP IN VS CODE (takes 60 seconds)${N}"
 echo -e "${B}════════════════════════════════════════════════════════════════${N}"
 echo ""
-echo "  LEFT HALF       │  RIGHT HALF TOP"
-echo "  Browser         │  Terminal 1 — Orchestrator"
-echo "  GitHub Issues   │  \$ claude"
-echo "  (8 tasks open)  ├─────────────────────────────"
-echo "                  │  Terminal 2 — Worker A"
-echo "  ────────────────┤  \$ claude"
-echo "  VS CODE bottom  ├─────────────────────────────"
-echo "  MAULT tab       │  Terminal 3 — Worker B"
-echo "  AGENT WORKFLOWS │  \$ claude"
+echo -e "  ${C}Step 1 — Open GitHub Issues inside VS Code${N}"
+echo "  Cmd+Shift+P → type: Simple Browser"
+echo "  → Click 'Simple Browser: Show'"
+echo "  → Paste this URL:"
+echo "    ${REPO_URL}/issues?q=is%3Aopen+label%3Amault-agent"
+echo "  → Drag the Simple Browser tab to the LEFT half of the editor"
+echo ""
+echo -e "  ${C}Step 2 — Open the Mault bottom panel${N}"
+echo "  Click the MAULT tab at the bottom of VS Code"
+echo "  Should show: Monolith Violations, Environment Issues, etc."
+echo "  If empty → Cmd+Shift+P → 'Mault: Refresh Panel'"
+echo ""
+echo -e "  ${C}Step 3 — Open Agent Workflows sidebar${N}"
+echo "  Click the Mault icon in the left sidebar"
+echo "  → AGENT WORKFLOWS panel should show Planner / Orchestrator / Worker"
+echo ""
+echo -e "  ${C}Step 4 — Open 3 integrated terminals (Ctrl+\`)${N}"
+echo "  Terminal 1: type  claude  → this becomes the Orchestrator tab"
+echo "  Ctrl+\` again → terminal 2: type  claude  → Worker A tab"
+echo "  Ctrl+\` again → terminal 3: type  claude  → Worker B tab"
+echo "  Each 'claude' opens as a new editor tab at the top"
 echo ""
 echo -e "${B}════════════════════════════════════════════════════════════════${N}"
-echo -e "${B}  IN VS CODE — do once after it opens:${N}"
+echo -e "${B}  DEMO FLOW — once layout is set${N}"
 echo -e "${B}════════════════════════════════════════════════════════════════${N}"
 echo ""
-echo "  1. Click the MAULT tab in the bottom panel"
-echo "     → Should show 6 finding categories"
-echo "     → If empty: Cmd+Shift+P → 'Mault: Refresh Panel'"
-echo ""
-echo "  2. Click the Mault icon in the left sidebar"
-echo "     → Open AGENT WORKFLOWS panel"
-echo "     → Should show: Planner / Orchestrator / Worker / Review Agent"
-echo ""
-echo "  3. Open CLAUDE.md in the editor (has all agent prompts)"
-echo ""
-echo -e "${B}════════════════════════════════════════════════════════════════${N}"
-echo -e "${B}  DEMO FLOW${N}"
-echo -e "${B}════════════════════════════════════════════════════════════════${N}"
-echo ""
-echo -e "  ${C}PART 1 — Mault Panel  (< 5 min)${N}"
-echo "  • Show 6 finding categories in Mault Panel"
-echo "  • Walk Production Readiness tree — Steps 1+2 done, 4-9 pending"
-echo "  • Show ci.yml → Step 4 done"
-echo "  • Show .pre-commit-config.yaml → Step 6 done"
-echo "  • Say: 'Orchestrator reads these findings and assigns workers'"
+echo -e "  ${C}PART 1 — Mault Panel walkthrough  (< 5 min)${N}"
+echo "  • Point to Mault Panel — 6 finding categories visible"
+echo "  • Show Production Readiness tree — Steps 1+2 done, 4-9 pending"
+echo "  • Click ci.yml tab → 'Step 4 done — CI wired'"
+echo "  • Click .pre-commit-config.yaml → 'Step 6 done — 5-layer enforcement'"
+echo "  • Say: 'Orchestrator reads these findings, creates issues, assigns workers'"
 echo ""
 echo -e "  ${C}PART 2 — Agent Orchestration  (< 10 min)${N}"
-echo "  • Terminal 1: claude → paste ORCHESTRATOR prompt (top of CLAUDE.md)"
-echo "  • Terminal 2: claude → paste WORKER A prompt"
-echo "  • Terminal 3: claude → paste WORKER B prompt"
-echo "  • When PR opens → paste REVIEW AGENT prompt → approve → MERGE live"
+echo "  • Click Orchestrator tab → paste ORCHESTRATOR prompt from CLAUDE.md"
+echo "  • Watch GitHub Issues tab — 8 tasks appear (already pre-created)"
+echo "  • Click Worker A tab → paste WORKER A prompt"
+echo "  • Click Worker B tab → paste WORKER B prompt"
+echo "  • When PR opens → click Review Agent tab → paste REVIEW prompt → MERGE"
 echo ""
-echo -e "  ${C}All prompts in CLAUDE.md — already open in VS Code${N}"
-echo ""
-echo -e "${B}════════════════════════════════════════════════════════════════${N}"
-echo ""
-echo "  Issues:  ${REPO_URL}/issues?q=is%3Aopen+label%3Amault-agent"
-echo "  Actions: ${REPO_URL}/actions"
+echo "  Issues: ${REPO_URL}/issues?q=is%3Aopen+label%3Amault-agent"
 echo ""
 echo -e "${G}${B}  Ready. You're on.${N}"
 echo ""
