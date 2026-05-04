@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+.DS_Store
+.memory-layer/baselines/
+.memory-layer/cache/
+.memory-layer/reports/
+.mault/verify-*.proof

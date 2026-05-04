@@ -1,0 +1,49 @@
+repos:
+  - repo: local
+    hooks:
+      # Layer 1: TypeScript compilation
+      - id: typecheck
+        name: TypeScript type check
+        entry: npx tsc --noEmit
+        language: system
+        pass_filenames: false
+        types: [ts]
+
+      # Layer 2: ESLint
+      - id: eslint
+        name: ESLint
+        entry: npx eslint src --ext .ts --max-warnings 0
+        language: system
+        pass_filenames: false
+        types: [ts]
+
+      # Layer 3: Unit tests (fast, affected only via jest --onlyFailures)
+      - id: unit-tests
+        name: Unit tests
+        entry: npm run test:unit -- --passWithNoTests
+        language: system
+        pass_filenames: false
+
+      # Layer 4: Type safety ratchet (no new `any`)
+      - id: type-safety-ratchet
+        name: Type safety gate (no new `any`)
+        entry: node scripts/governance/check-type-safety.js
+        language: system
+        pass_filenames: false
+        types: [ts]
+
+      # Layer 5: Mock tax (2x rule)
+      - id: mock-tax
+        name: Mock tax check (test:source ratio)
+        entry: node scripts/governance/check-mock-tax.js
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']

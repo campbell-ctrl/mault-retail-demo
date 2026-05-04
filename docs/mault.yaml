@@ -1,0 +1,132 @@
+version: 1
+
+environment:
+  apiPort: 3000
+  shell: 'bash'
+
+conventions:
+  naming:
+    - filePattern: '*.ts'
+      className: 'PascalCase'
+      functionName: 'camelCase'
+      constantName: 'SCREAMING_SNAKE_CASE'
+
+deprecatedPatterns:
+  - id: dep-legacy-helpers
+    import: '../legacy/old-product-helpers'
+    message: 'Use src/services/product-service instead of legacy helpers.'
+    languages: [typescript]
+
+  - id: dep-console-log
+    import: 'console.log'
+    message: 'Use structured logging (winston/pino) instead of console.log in production.'
+    languages: [typescript]
+
+applicationFlows:
+  - id: flow-checkout
+    name: 'Checkout Flow'
+    description: 'Any change to checkout route or order service affects the revenue path.'
+    files:
+      - 'src/routes/checkout.ts'
+      - 'src/services/order-service.ts'
+    severity: high
+
+  - id: flow-inventory
+    name: 'Inventory Adjustment'
+    description: 'Inventory adjustments affect stock accuracy across all channels.'
+    files:
+      - 'src/routes/inventory.ts'
+      - 'src/services/product-service.ts'
+    severity: high
+
+Detectors:
+  directoryReinforcement:
+    enabled: true
+    rules:
+      - pattern: '**/*Service.{ts,js}'
+        expectedDir: 'src/services'
+        reason: 'Service files must live in src/services/'
+      - pattern: '**/*-service.{ts,js}'
+        expectedDir: 'src/services'
+        reason: 'Service files must live in src/services/'
+      - pattern: '**/*.test.{ts,js}'
+        expectedDir: 'tests'
+        reason: 'Test files must live in tests/ (unit/ or integration/)'
+      - pattern: '**/*Handler.{ts,js}'
+        expectedDir: 'src/middleware'
+        reason: 'Handler/middleware files must live in src/middleware/'
+
+  namingConvention:
+    enabled: true
+    fileNaming: 'kebab-case'
+    variableNaming: 'camelCase'
+    functionNaming: 'camelCase'
+    classNaming: 'PascalCase'
+    constantNaming: 'SCREAMING_SNAKE_CASE'
+    excludePatterns:
+      - '**/*.test.ts'
+      - '**/*.d.ts'
+      - '**/*.config.*'
+      - 'jest.config.js'
+
+  environmentReinforcement:
+    enabled: true
+    checkPaths: true
+    checkCommands: true
+
+  tempFiles:
+    enabled: true
+    patterns:
+      - '**/*.tmp'
+      - '**/temp_*'
+      - '**/scratch_*'
+      - '**/*.bak'
+      - '**/debug_*'
+
+  flatArchitecture:
+    enabled: true
+    targets:
+      - path: 'src'
+        maxRootFiles: 5
+        minSubdirs: 3
+        excludePatterns: ['dist/**', 'node_modules/**']
+
+  configChaos:
+    enabled: true
+    requiredConfigs:
+      - '.gitignore'
+      - 'package.json'
+      - 'tsconfig.json'
+      - '.env.example'
+      - 'Dockerfile'
+
+  fileProliferation:
+    enabled: true
+    threshold: 3
+
+  overcrowdedFolders:
+    enabled: true
+    targets:
+      - path: 'src'
+        maxFiles: 15
+
+  misplacedUtilities:
+    enabled: true
+    centralLocation: 'src/utils'
+
+  dependencyHealth:
+    enabled: true
+    severityThreshold: 'moderate'
+
+  productionReadiness:
+    enabled: true
+
+  projectScaffolding:
+    enabled: true
+    rootMaxFiles: 12
+
+  deadEnds:
+    enabled: true
+    ignoreGlobs: ['node_modules/**', 'dist/**']
+    maxFiles: 500
+    timeBudgetMs: 5000
