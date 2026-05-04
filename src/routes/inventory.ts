@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getAllProducts, getProductById, updateProductStock } from '../services/product-service';
 import { requireAuth } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -25,7 +26,7 @@ router.post('/adjust', requireAuth, (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Product not found' });
   }
   const updated = updateProductStock(productId, adjustment);
-  console.log(`Inventory adjusted: ${reason}`);
+  logger.info('Inventory adjusted', { reason, productId, adjustment });
   res.json({ data: updated });
 });
 

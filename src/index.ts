@@ -8,6 +8,7 @@ import checkoutRoutes from './routes/checkout';
 import orderRoutes from './routes/orders';
 import { errorHandler } from './middleware/error-handler';
 import { seedProducts } from './services/product-service';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
@@ -16,6 +17,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(express.json());
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -34,7 +39,7 @@ app.use(errorHandler);
 seedProducts();
 
 app.listen(PORT, () => {
-  console.log(`Retail extension running on port ${PORT}`);
+  logger.info(`Retail extension running on port ${PORT}`);
 });
 
 export default app;
