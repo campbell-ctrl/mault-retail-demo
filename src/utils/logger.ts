@@ -2,11 +2,7 @@ type LogLevel = 'info' | 'warn' | 'error';
 
 function log(level: LogLevel, msg: string, meta?: object): void {
   const entry = JSON.stringify({ level, msg, ...(meta ? { meta } : {}), ts: new Date().toISOString() });
-  if (level === 'error') {
-    process.stderr.write(entry + '\n');
-  } else {
-    process.stdout.write(entry + '\n');
-  }
+  if (level === 'error') { process.stderr.write(entry + '\n'); } else { process.stdout.write(entry + '\n'); }
 }
 
 export const logger = {
