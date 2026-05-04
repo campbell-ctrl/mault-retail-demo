@@ -11,9 +11,7 @@ router.get('/', (_req: Request, res: Response) => {
 
 router.get('/:id', (req: Request, res: Response) => {
   const product = getProductById(req.params.id);
-  if (!product) {
-    return res.status(404).json({ error: 'Product not found' });
-  }
+  if (!product) return res.status(404).json({ error: 'Product not found' });
   res.json({ data: product });
 });
 
@@ -24,9 +22,7 @@ router.post(
   body('sku').notEmpty().withMessage('sku is required'),
   (req: Request, res: Response) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(422).json({ errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(422).json({ errors: errors.array() });
     const product = createProduct(req.body);
     res.status(201).json({ data: product });
   }
