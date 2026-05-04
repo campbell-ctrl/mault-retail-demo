@@ -11,22 +11,83 @@
         "clear": true,
         "showReuseMessage": false
       },
-      "runOptions": {
-        "runOn": "folderOpen"
-      },
-      "group": "none",
+      "runOptions": { "runOn": "folderOpen" },
       "problemMatcher": []
     },
     {
-      "label": "Demo Reset",
+      "label": "Agent: Planner",
       "type": "shell",
-      "command": "bash demo-reset.sh",
+      "command": "printf '\\n\\033[1;33m  ┌─────────────────────────────┐\\n  │       PLANNER               │\\n  │  /project:demo-planner      │\\n  └─────────────────────────────┘\\033[0m\\n\\n' && claude",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
-        "clear": true
+        "group": "agents",
+        "showReuseMessage": false
       },
-      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent: Orchestrator",
+      "type": "shell",
+      "command": "printf '\\n\\033[1;34m  ┌─────────────────────────────┐\\n  │      ORCHESTRATOR           │\\n  │  /project:demo-orchestrator │\\n  └─────────────────────────────┘\\033[0m\\n\\n' && claude",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "agents",
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent: Worker A (Security)",
+      "type": "shell",
+      "command": "printf '\\n\\033[1;32m  ┌─────────────────────────────┐\\n  │      WORKER A               │\\n  │  /project:demo-worker-a     │\\n  └─────────────────────────────┘\\033[0m\\n\\n' && claude",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "agents",
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent: Worker B (Infra)",
+      "type": "shell",
+      "command": "printf '\\n\\033[1;35m  ┌─────────────────────────────┐\\n  │      WORKER B               │\\n  │  /project:demo-worker-b     │\\n  └─────────────────────────────┘\\033[0m\\n\\n' && claude",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "agents",
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent: Review Agent",
+      "type": "shell",
+      "command": "printf '\\n\\033[1;36m  ┌─────────────────────────────┐\\n  │      REVIEW AGENT           │\\n  │  /project:demo-review       │\\n  └─────────────────────────────┘\\033[0m\\n\\n' && claude",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "agents",
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🚀 Launch Demo",
+      "dependsOn": [
+        "Agent: Planner",
+        "Agent: Orchestrator",
+        "Agent: Worker A (Security)",
+        "Agent: Worker B (Infra)",
+        "Agent: Review Agent"
+      ],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": []
     }
   ]
