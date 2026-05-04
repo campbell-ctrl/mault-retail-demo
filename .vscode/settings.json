@@ -1,0 +1,18 @@
+{
+    // Mault — Full detection from first open, no ramp period
+    "mault.detectionLevel": 3,
+    "mault.enabled": true,
+    "mault.excludePatterns": [
+        "node_modules/**",
+        "dist/**",
+        "coverage/**",
+        ".memory-layer/**"
+    ],
+
+    // Open CLAUDE.md in editor on workspace open (reference during demo)
+    "workbench.startupEditor": "none",
+
+    // Bottom panel always visible
+    "workbench.panel.defaultLocation": "bottom",
+    "workbench.panel.opensMaximized": "never"
+}
