@@ -14,5 +14,10 @@
 
     // Bottom panel always visible
     "workbench.panel.defaultLocation": "bottom",
-    "workbench.panel.opensMaximized": "never"
+    "workbench.panel.opensMaximized": "never",
+
+    // Make claude CLI available in integrated terminals
+    "terminal.integrated.env.osx": {
+        "PATH": "/Users/campbellaabbott/.vscode/extensions/anthropic.claude-code-2.1.126-darwin-arm64/resources/native-binary:${env:PATH}"
+    }
 }
