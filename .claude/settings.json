@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(gh *)",
+      "Bash(node *)",
+      "Bash(rm -rf src/legacy)",
+      "Bash(rm -f src/middleware/auth.ts)",
+      "Bash(rm -f src/utils/logger.ts)",
+      "Bash(rm -f tests/unit/order-service.test.ts)",
+      "Bash(mkdir -p src/legacy)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(echo *)",
+      "Bash(bash demo-reset.sh)"
+    ]
+  }
+}
