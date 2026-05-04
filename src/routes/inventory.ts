@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getAllProducts, getProductById, updateProductStock } from '../services/product-service';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -17,16 +18,14 @@ router.get('/', (_req: Request, res: Response) => {
   res.json({ data: inventory });
 });
 
-// NO auth check — protected route with no auth middleware (intentional gap)
-// NO validation on adjustment value — could accept negative/NaN
-router.post('/adjust', (req: Request, res: Response) => {
+router.post('/adjust', requireAuth, (req: Request, res: Response) => {
   const { productId, adjustment, reason } = req.body;
   const product = getProductById(productId);
   if (!product) {
     return res.status(404).json({ error: 'Product not found' });
   }
   const updated = updateProductStock(productId, adjustment);
-  console.log(`Inventory adjusted: ${reason}`); // NO structured logging — intentional gap
+  console.log(`Inventory adjusted: ${reason}`);
   res.json({ data: updated });
 });
 

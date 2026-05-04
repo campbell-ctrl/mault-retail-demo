@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
+import { body, validationResult } from 'express-validator';
 import { getAllProducts, getProductById, createProduct } from '../services/product-service';
 
 const router = Router();
 
-// NO input validation — intentional gap for Mault Production Readiness demo
-// NO rate limiting — intentional gap
 router.get('/', (_req: Request, res: Response) => {
   const products = getAllProducts();
   res.json({ data: products, count: products.length });
@@ -18,10 +17,19 @@ router.get('/:id', (req: Request, res: Response) => {
   res.json({ data: product });
 });
 
-// NO validation on body fields — intentional gap
-router.post('/', (req: Request, res: Response) => {
-  const product = createProduct(req.body);
-  res.status(201).json({ data: product });
-});
+router.post(
+  '/',
+  body('name').notEmpty().withMessage('name is required'),
+  body('price').isFloat({ min: 0 }).withMessage('price must be a non-negative number'),
+  body('sku').notEmpty().withMessage('sku is required'),
+  (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() });
+    }
+    const product = createProduct(req.body);
+    res.status(201).json({ data: product });
+  }
+);
 
 export default router;
