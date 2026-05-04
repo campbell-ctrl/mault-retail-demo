@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { createOrder } from '../services/order-service';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
-// NO auth middleware — checkout should require authenticated customer (intentional gap)
-// NO idempotency key — double-submit could create duplicate orders (intentional gap)
-router.post('/', (req: Request, res: Response) => {
+router.post('/', requireAuth, (req: Request, res: Response) => {
   const result = createOrder(req.body);
 
   if ('error' in result) {
